@@ -12,13 +12,16 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
-from langchain.chat_models.base import ChatModel
-from langchain.schema import AIMessage, BaseMessage, ChatGeneration, ChatResult
+from langchain_core.language_models.chat_models import BaseChatModel
+from langchain_core.messages import AIMessage, BaseMessage
+from langchain_core.outputs import ChatGeneration, ChatResult
+from langchain_core.tools import BaseTool
+from langchain_core.runnables import Runnable
 
 from proxy_llm import call_llm
 
 
-class ProxyChatModel(ChatModel):
+class ProxyChatModel(BaseChatModel):
     """ChatModel implementation that calls an OpenAI-compatible proxy.
 
     This is intentionally minimal: it converts the incoming LangChain message
@@ -27,14 +30,23 @@ class ProxyChatModel(ChatModel):
     """
 
     model_name: str = "proxy"
+    bound_tools: List[BaseTool] = []
 
-    def __init__(
-        self, model_name: Optional[str] = None, temperature: float = 0.0, **kwargs: Any
-    ):
+    def __init__(self, model_name: Optional[str] = None, **kwargs: Any):
         super().__init__(**kwargs)
-        if model_name:
+        if model_name is not None:
             self.model_name = model_name
-        self.temperature = temperature
+
+    def bind_tools(
+        self,
+        tools: Sequence[BaseTool],
+        tool_choice: Optional[Any] = None,
+        **kwargs: Any,
+    ) -> "ProxyChatModel":
+        """Bind tools to the model."""
+        new_model = ProxyChatModel(model_name=self.model_name)
+        new_model.bound_tools = list(tools)
+        return new_model
 
     @property
     def _llm_type(self) -> str:
@@ -42,7 +54,7 @@ class ProxyChatModel(ChatModel):
 
     @property
     def _identifying_params(self) -> Dict[str, Any]:
-        return {"model_name": self.model_name, "temperature": self.temperature}
+        return {"model_name": self.model_name, "bound_tools": len(self.bound_tools)}
 
     def _messages_to_prompt(self, messages: List[BaseMessage]) -> str:
         # Simple prompt conversion: prefix each message with its role.

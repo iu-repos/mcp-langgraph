@@ -8,15 +8,10 @@ services:
     platform: linux/amd64
     ports:
       - "8081:8080"         # Expose port 8080 of the container on port 8081 of the host
-    environment:
-      - GOOGLE_APPLICATION_CREDENTIALS=/your_path/application_default_credentials.json
-      - GOOGLE_CLOUD_PROJECT=your_project_gcp_id
     depends_on:
       - mcp-server
     networks:
       - ai-network
-    volumes:
-      - your_path/application_default_credentials.json
 
   mcp-server:
     build:
@@ -30,8 +25,6 @@ services:
     tty: true         # Allocate a pseudo-TTY
     networks:
       - ai-network
-    volumes:
-      - your_path/application_default_credentials.json
 
   chat-ui:
     build:
@@ -42,15 +35,10 @@ services:
     platform: linux/amd64
     ports:
       - "5001:8081"         # Expose Streamlit on port 5001 (to avoid conflict with MCP client)
-    environment:
-      - GOOGLE_APPLICATION_CREDENTIALS=/your_path/application_default_credentials.json
-      - GOOGLE_CLOUD_PROJECT=your_project_gcp_id
     depends_on:
       - mcp-client
     networks:
       - ai-network
-    volumes:
-      - your_path/.config/gcloud/application_default_credentials.json
 
 networks:
   ai-network:
