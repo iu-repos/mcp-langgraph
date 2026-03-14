@@ -4,9 +4,6 @@ import os
 from abc import ABC, abstractmethod
 from typing import Any, Literal, Optional
 
-from google.cloud.logging import Client
-from google.cloud.logging_v2.handlers import CloudLoggingHandler
-
 
 class AbstractLoggerFactory(ABC):
     def __init__(
@@ -77,62 +74,101 @@ class LoggerFactory(AbstractLoggerFactory):
     ):
         super().__init__(handler_type, filename, verbose)
 
+    @staticmethod
+    def _resolve_level(level: Optional[str | int], verbose: bool) -> int:
+        if isinstance(level, int):
+            return level
+
+        if isinstance(level, str):
+            configured = level.strip().upper()
+        else:
+            configured = os.getenv("MCP_LOG_LEVEL", "").strip().upper()
+
+        if configured:
+            parsed = logging.getLevelName(configured)
+            if isinstance(parsed, int):
+                return parsed
+            raise ValueError(f"Invalid log level: {configured}")
+
+        return logging.DEBUG if verbose else logging.INFO
+
+    @staticmethod
+    def _remove_managed_handlers(logger: logging.Logger) -> None:
+        managed_handlers = [
+            handler
+            for handler in logger.handlers
+            if getattr(handler, "_mcp_logger_factory_managed", False)
+        ]
+        for handler in managed_handlers:
+            logger.removeHandler(handler)
+            handler.close()
+
+    @staticmethod
+    def _caller_module_name() -> str:
+        frame = inspect.stack()[2]
+        module = inspect.getmodule(frame[0])
+        return module.__name__ if module else "unknown"
+
     def create_module_logger(
         self,
         module_name: Optional[str] = None,
         **kwargs: Any,
     ) -> logging.Logger:
         if module_name is None:
-            # Dynamically get the name of the calling module
-            frame = inspect.stack()[1]
-            module = inspect.getmodule(frame[0])
-            module_name = module.__name__ if module else "unknown"
+            # Dynamically get the name of the calling module.
+            module_name = self._caller_module_name()
 
-        # Create logger
+        level = self._resolve_level(kwargs.pop("level", None), self.verbose)
+        log_format = kwargs.pop(
+            "log_format",
+            os.getenv(
+                "MCP_LOG_FORMAT",
+                "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+            ),
+        )
+        datefmt = kwargs.pop("datefmt", os.getenv("MCP_LOG_DATEFMT") or None)
+        propagate = kwargs.pop("propagate", False)
+        force_reconfigure = kwargs.pop("force_reconfigure", True)
+
         logger = logging.getLogger(module_name)
-        # Remove all existing handlers to avoid duplication
-        logger.handlers.clear()
-        logger.setLevel(logging.DEBUG if self.verbose else logging.INFO)
+        logger.setLevel(level)
+        logger.propagate = propagate
 
-        handler: (
-            logging.Handler
-        )  # Explicitly declare handler as a generic logging.Handler
+        if force_reconfigure:
+            self._remove_managed_handlers(logger)
+        else:
+            for handler in logger.handlers:
+                if getattr(handler, "_mcp_logger_factory_managed", False):
+                    return logger
+
+        handler: logging.Handler
         match self.handler_type:
             case "File":
-                # Ensure the logging directory exists
-                self.log_dir = os.path.join(os.path.dirname(__file__), "logging")
-                os.makedirs(self.log_dir, exist_ok=True)
-
-                # Update filename to include the logging directory
-                file_path = os.path.join(self.log_dir, self.filename)
+                log_dir = os.path.join(os.path.dirname(__file__), "logging")
+                os.makedirs(log_dir, exist_ok=True)
+                file_path = os.path.join(log_dir, self.filename)
+                kwargs.setdefault("encoding", "utf-8")
                 handler = logging.FileHandler(filename=file_path, **kwargs)
             case "Stream":
-                handler = logging.StreamHandler()  # default writes to sys.stderr
+                handler = logging.StreamHandler(**kwargs)
             case "GCP":
-                # integrates with Google Cloud Logging
                 try:
+                    from google.cloud.logging import Client
+                    from google.cloud.logging_v2.handlers import CloudLoggingHandler
+
                     client = Client()
-                    try:
-                        handler = CloudLoggingHandler(client, **kwargs)
-                    except Exception as e:
-                        raise RuntimeError(
-                            "Failed to create GCP logging handler. Ensure the 'google-cloud-logging' library is installed and properly configured."
-                        ) from e
+                    handler = CloudLoggingHandler(client, **kwargs)
                 except Exception as e:
-                    raise RuntimeError("Failed to create GCP logging handler") from e
+                    raise RuntimeError(
+                        "Failed to create GCP logging handler. Ensure 'google-cloud-logging' is installed and credentials are configured."
+                    ) from e
             case _:
                 raise ValueError(f"Invalid handler type: {self.handler_type}")
 
-        # Create formatter and add it to the handler
-        formatter = logging.Formatter(
-            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-        )
+        formatter = logging.Formatter(log_format, datefmt=datefmt)
         handler.setFormatter(formatter)
+        handler._mcp_logger_factory_managed = True  # type: ignore[attr-defined]
         logger.addHandler(handler)
-
-        # Log the created logger and its effective log level
-        log_level_name = logging.getLevelName(logger.getEffectiveLevel())
-        # logger.info(f"Logger created for module: {module_name} using log level: {log_level_name}.")
 
         return logger
 

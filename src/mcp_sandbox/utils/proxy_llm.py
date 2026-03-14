@@ -14,22 +14,26 @@ Configuration comes from the usual .env file.  Supported variables::
     PROXY_BASE_URL   - base URL (no trailing slash) to which "/chat/completions"
                        will be appended
     PROXY_MODEL      - optional model name; defaults to ``chatgpt-4o``
+    PROXY_LOG_LEVEL  - logging level for this module; defaults to ``DEBUG``
+                       (e.g. ``INFO``, ``WARNING``, ``ERROR``)
 
 The module raises on HTTP errors or if the proxy returns an unexpected format.
 """
 
-import logging
 import os
 
 import httpx
 from dotenv import load_dotenv
-
-# configure basic logging; allow caller to override level via environment
-logging.basicConfig(level=os.getenv("PROXY_LOG_LEVEL", "INFO").upper())
-logger = logging.getLogger(__name__)
+from mcp_sandbox.services.logger import LoggerFactory
 
 # load early so environment variables are available at import time
 load_dotenv()
+
+logger = LoggerFactory(handler_type="Stream", verbose=True).create_module_logger(
+    module_name=__name__,
+    level=os.getenv("PROXY_LOG_LEVEL"),
+    force_reconfigure=False,
+)
 
 API_KEY = os.getenv("PROXY_API_KEY")
 BASE_URL = os.getenv("PROXY_BASE_URL", "").rstrip("/")

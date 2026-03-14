@@ -157,5 +157,40 @@ def call_model(state: AgentState, model_with_tools) -> Dict[str, Sequence[AIMess
         raise
 
 
+_LOG_FMT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+_ACCESS_FMT = '%(asctime)s - %(name)s - %(levelname)s - %(client_addr)s - "%(request_line)s" %(status_code)s'
+
+_UVICORN_LOG_CONFIG = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "default": {"()": "logging.Formatter", "fmt": _LOG_FMT},
+        "access": {"()": "uvicorn.logging.AccessFormatter", "fmt": _ACCESS_FMT},
+    },
+    "handlers": {
+        "default": {
+            "formatter": "default",
+            "class": "logging.StreamHandler",
+            "stream": "ext://sys.stderr",
+        },
+        "access": {
+            "formatter": "access",
+            "class": "logging.StreamHandler",
+            "stream": "ext://sys.stdout",
+        },
+    },
+    "loggers": {
+        "uvicorn": {"handlers": ["default"], "level": "INFO", "propagate": False},
+        "uvicorn.error": {"handlers": ["default"], "level": "INFO", "propagate": False},
+        "uvicorn.access": {"handlers": ["access"], "level": "INFO", "propagate": False},
+    },
+}
+
 if __name__ == "__main__":
-    uvicorn.run("app_mcp_client:app", host="0.0.0.0", port=8080, reload=True)
+    uvicorn.run(
+        "app_mcp_client:app",
+        host="0.0.0.0",
+        port=8080,
+        reload=True,
+        log_config=_UVICORN_LOG_CONFIG,
+    )
