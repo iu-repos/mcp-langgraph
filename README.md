@@ -48,6 +48,16 @@ source .venv/bin/activate
 uv sync --group dev
 ```
 
+### Configure LLM proxy (optional)
+This project can use an OpenAI-compatible proxy via `proxy_llm.py`. Put the following in a `.env` file in the repo root:
+
+```env
+PROXY_API_KEY=<your-api-key>
+PROXY_BASE_URL=<your-proxy-base-url>  # no trailing slash
+# Optional: override the proxy model (default: chatgpt-4o)
+# PROXY_MODEL=chatgpt-4o
+```
+
 Get started locally:
 ```bash
 make all-services                      # UI + MCP Client + MCP Server

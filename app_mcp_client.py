@@ -4,15 +4,14 @@ from fastapi import FastAPI
 from contextlib import asynccontextmanager
 from pydantic import BaseModel
 from langchain_core.messages import HumanMessage, AIMessage
-from langchain_google_vertexai import ChatVertexAI
 from langchain.tools import tool
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from langgraph.graph import StateGraph, START
 from langgraph.prebuilt import ToolNode, tools_condition
 from langgraph.graph.message import add_messages
-from mcp_sandbox.config.config import model_list
 from mcp_sandbox.config import global_config as glob
 from mcp_sandbox.services.logger import LoggerFactory
+from mcp_sandbox.utils.proxy_chat_model import ProxyChatModel
 
 logger = LoggerFactory(handler_type="Stream", verbose=True).create_module_logger()
 
@@ -90,7 +89,7 @@ async def lifespan(app: FastAPI):
 
         logger.info(f"🛠️  Total tools available: {len(all_tools)}")
 
-        llm = ChatVertexAI(model_name=model_list["chat_model"]["google"], temperature=0)
+        llm = ProxyChatModel()
 
         model_with_tools = llm.bind_tools(all_tools)
         tool_node = ToolNode(all_tools)
