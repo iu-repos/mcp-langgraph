@@ -18,7 +18,7 @@ from langchain_core.outputs import ChatGeneration, ChatResult
 from langchain_core.tools import BaseTool
 from langchain_core.runnables import Runnable
 
-from proxy_llm import call_llm
+from .proxy_llm import call_llm
 
 
 class ProxyChatModel(BaseChatModel):

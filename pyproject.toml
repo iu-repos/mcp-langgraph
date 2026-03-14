@@ -29,6 +29,9 @@ dependencies = [
     "watchdog>=6.0.0",
 ]
 
+[tool.uv.dependencies]
+proxy-llm = { path = "../proxy_llm" }
+
 keywords = ["Data Science", "Project template"]
 
 [tool.setuptools]
