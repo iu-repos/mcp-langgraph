@@ -7,11 +7,15 @@ services:
     image: mcp-client:latest
     platform: linux/amd64
     ports:
-      - "8081:8080"         # Expose port 8080 of the container on port 8081 of the host
+      - "8080:8080"         # Expose port 8080 of the container on port 8080 of the host
     depends_on:
       - mcp-server
     networks:
       - ai-network
+    environment:
+      PROXY_API_KEY: "57133ee1-03b9-4286-85d8-6802340de5fb"
+      PROXY_BASE_URL: "https://labs.pluralsight.com/labs-ai-proxy/rest/openai/chatgpt-4o/v1/"
+      PROXY_MODEL: "gpt-4"   # or whatever model your proxy expects
 
   mcp-server:
     build:
