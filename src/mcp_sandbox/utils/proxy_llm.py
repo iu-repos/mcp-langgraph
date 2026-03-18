@@ -21,6 +21,7 @@ The module raises on HTTP errors or if the proxy returns an unexpected format.
 """
 
 import os
+from typing import Any
 
 import httpx
 from dotenv import load_dotenv
@@ -43,12 +44,13 @@ MODEL = os.getenv("PROXY_MODEL", "chatgpt-4o")
 def call_llm(prompt: str) -> str:
     """Send ``prompt`` to the proxy and return the assistant text.
 
-    The proxy often returns additional fields that are not part of the official
-    OpenAI spec; we handle the common cases (`choices` array or `response`
-    attribute) and raise if no text can be extracted.
+    This proxy only supports the legacy ``{"prompt": "..."}`` format;
+    tool descriptions and conversation history are embedded in the prompt
+    string by the caller (see ``ProxyChatModel._build_prompt``).
 
-    A simple synchronous ``httpx.Client`` is used for efficiency; callers can
-    wrap this logic with async code if needed.
+    Raises:
+        RuntimeError: If credentials are missing.
+        httpx.HTTPStatusError: On non-2xx HTTP responses.
     """
     if not (API_KEY and BASE_URL):
         raise RuntimeError(
@@ -59,12 +61,9 @@ def call_llm(prompt: str) -> str:
         "Content-Type": "application/json",
         "Authorization": f"Bearer {API_KEY}",
     }
-    # Use old API format (prompt field) instead of new messages array
-    payload = {
-        "prompt": prompt,
-    }
+    payload: dict[str, Any] = {"prompt": prompt}
 
-    logger.debug("calling proxy %s with payload %s", BASE_URL, payload)
+    logger.debug("calling proxy %s — prompt length %s chars", BASE_URL, len(prompt))
     with httpx.Client() as client:
         resp = client.post(
             f"{BASE_URL}/chat/completions", json=payload, headers=headers

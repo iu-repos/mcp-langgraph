@@ -18,9 +18,9 @@ def multiply(a: float, b: float) -> float:
     Returns:
         float: The product of a and b.
     """
-    logger.info(f"🔢 MULTIPLY CALLED: {a} * {b}")
+    logger.info("[MCP_SERVER] TOOL_START multiply a=%s b=%s", a, b)
     result = a * b
-    logger.info(f"🔢 MULTIPLY RESULT: {result}")
+    logger.info("[MCP_SERVER] TOOL_END multiply result=%s", result)
     return result
 
 
@@ -37,12 +37,12 @@ def add(a: float, b: float) -> float:
     Returns:
         float: The sum of `a` and `b`.
     """
-    logger.info(f"➕ ADD CALLED: {a} + {b}")
+    logger.info("[MCP_SERVER] TOOL_START add a=%s b=%s", a, b)
     result = a + b
-    logger.info(f"➕ ADD RESULT: {result}")
+    logger.info("[MCP_SERVER] TOOL_END add result=%s", result)
     return result
 
 
 if __name__ == "__main__":
-    logger.info("🚀 MCP server starting...")
+    logger.info("[MCP_SERVER] Server starting")
     server.run()

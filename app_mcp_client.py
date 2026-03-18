@@ -123,10 +123,14 @@ def health():
 @app.post("/calculate")
 async def ask(req: AskRequest) -> Dict[str, str]:
     query = req.query
+    logger.info("[CLIENT] /calculate request received")
+    logger.info("[CLIENT] User query: %s", query)
     state = {"messages": [HumanMessage(content=query)]}
     # Run the graph asynchronously
     final = await app.state.graph.ainvoke(state)
     answer = final["messages"][-1].content
+    logger.info("[CLIENT] Final answer: %s", answer)
+    logger.info("[CLIENT] /calculate request completed")
     return {"answer": answer}
 
 
@@ -145,12 +149,29 @@ def call_model(state: AgentState, model_with_tools) -> Dict[str, Sequence[AIMess
         Exception: Propagates any exception encountered during model invocation after logging the error.
     """
     try:
+        message_count = len(state.get("messages", []))
+        logger.info("[GRAPH] call_model invoked with %s message(s)", message_count)
+
         response = model_with_tools.invoke(state["messages"])
-        logger.info(f"🤖 Model response: {response.content}")
+        logger.info("[GRAPH] Model response: %s", response.content)
+
         if hasattr(response, "tool_calls") and response.tool_calls:
+            logger.info("[GRAPH] Tool call count: %s", len(response.tool_calls))
             logger.info(
-                f"🔧 Tool calls requested: {[call['name'] for call in response.tool_calls]}"
+                "[GRAPH] Tool calls requested: %s",
+                [call["name"] for call in response.tool_calls],
             )
+            for idx, call in enumerate(response.tool_calls, start=1):
+                logger.info(
+                    "[GRAPH] Tool call %s -> id=%s name=%s args=%s",
+                    idx,
+                    call.get("id"),
+                    call.get("name"),
+                    call.get("args"),
+                )
+        else:
+            logger.info("[GRAPH] No tool call requested by model")
+
         return {"messages": [response]}
     except Exception as e:
         logger.exception(f"❌ Error during model invocation: {e}")

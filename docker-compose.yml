@@ -13,9 +13,10 @@ services:
     networks:
       - ai-network
     environment:
-      PROXY_API_KEY: "57133ee1-03b9-4286-85d8-6802340de5fb"
+      PROXY_API_KEY: "aa1ca16c-afc6-4f6a-8fce-dad7c5b5fe5b"
       PROXY_BASE_URL: "https://labs.pluralsight.com/labs-ai-proxy/rest/openai/chatgpt-4o/v1/"
       PROXY_MODEL: "gpt-4"   # or whatever model your proxy expects
+      PROXY_LOG_LEVEL: "DEBUG"
 
   mcp-server:
     build:
